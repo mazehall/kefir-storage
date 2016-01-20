@@ -1,0 +1,40 @@
+{
+  "name": "kefir-storage",
+  "version": "0.1.0",
+  "description": "Observe object storage changes through kefir",
+  "main": "index.js",
+  "scripts": {
+    "test": "node_modules/.bin/jasmine-node --coffee tests"
+  },
+  "engines" : {
+    "node" : ">=0.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mazelab/kefir-storage"
+  },
+  "keywords": [
+    "kefir",
+    "kefir.js",
+    "streams",
+    "storage",
+    "observable",
+    "reactive"
+  ],
+  "author": {
+    "name": "Mazehall",
+    "email": "npm@mazehall.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "kefir": "^3.2.0"
+  },
+  "devDependencies": {
+    "del": "^2.2.0",
+    "gulp": "^3.9.0",
+    "gulp-coffee": "^2.3.1",
+    "gulp-util": "^3.0.7",
+    "jasmine-node": "^1.14.5",
+    "rewire": "^2.5.1"
+  }
+}
