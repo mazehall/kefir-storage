@@ -32,7 +32,6 @@ cloneObject = (obj) -> JSON.parse(JSON.stringify(obj))
 setup = ->
   model = rewire "../src/ks.coffee"
   model.__set__ '_store', cloneObject data
-  model._initStream()
 
 
 describe '_cloneObject', ->
@@ -50,50 +49,6 @@ describe '_cloneObject', ->
     clone = model._cloneObject obj
 
     expect(JSON.stringify(clone)).toEqual(JSON.stringify(obj))
-
-
-describe '_initStream', ->
-
-  _observe = null
-  _observeSpy = null
-
-  afterEach -> Object.observe = _observe if _observe
-
-  beforeEach ->
-    model = rewire "../src/ks.coffee"
-
-    _observe = Object.observe
-    _observeSpy = jasmine.createSpy('Object.observe').andCallFake (property, callback) ->
-      callback [{name: "test"}]
-    Object.observe = _observeSpy
-
-    model.__set__ '_r',
-      stream: jasmine.createSpy('kefir.stream').andCallFake (x) -> x('emitter')
-
-    spyOn(model, '_emitProperty').andCallFake ->
-
-  it 'should call _emitProperty', ->
-    model._initStream()
-
-    expect(model._emitProperty).toHaveBeenCalledWith('emitter', {name: "test"})
-
-  it 'should call _r.stream', ->
-    model._initStream()
-
-    expect(model.__get__('_r').stream).toHaveBeenCalledWith(jasmine.any(Function))
-
-  it 'should call Object.observe', ->
-    model._initStream()
-
-    expect(_observeSpy).toHaveBeenCalledWith([], jasmine.any(Function))
-
-  it 'should call Object.observe with current store', ->
-    expected = cloneObject data
-
-    model.__set__ '_store', expected
-    model._initStream()
-
-    expect(_observeSpy).toHaveBeenCalledWith(expected, jasmine.any(Function))
 
 
 describe 'isTypeArray', ->
@@ -138,127 +93,46 @@ describe 'isTypeArray', ->
     expect(model._isTypeArray data.array[4]).toBeFalsy()
 
 
-describe '_isUnique', ->
+describe '_isSame', ->
 
   beforeEach -> setup()
 
-  it "Should return true so unique", ->
-    expect(model._isUnique('null', 'null')).toBeTruthy()
-    expect(model._isUnique('bTrue', false)).toBeTruthy()
-    expect(model._isUnique('string', "you are string")).toBeTruthy()
-    expect(model._isUnique('object', ["test", "test2"])).toBeTruthy()
-    expect(model._isUnique('array', {some: "more"})).toBeTruthy()
+  it "Should return false", ->
+    expect(model._isSame(data.null, 'null')).toBeFalsy()
+    expect(model._isSame(data.bTrue, false)).toBeFalsy()
+    expect(model._isSame(data.string, "you are string")).toBeFalsy()
+    expect(model._isSame(data.object, ["test", "test2"])).toBeFalsy()
+    expect(model._isSame(data.array, {some: "more"})).toBeFalsy()
 
   it "Should return false so duplicate", ->
     for key, value of data
-      expect(model._isUnique(key, value)).toBeFalsy()
+      expect(model._isSame(data[key], value)).toBeTruthy()
 
 
-describe '_emitProperty', ->
-
-  _emitter = null
+describe '_emit', ->
 
   beforeEach ->
     setup()
-    _emitter =
-      emit: jasmine.createSpy('emitter.emit').andCallFake ->
+    model.__set__ '_r',
+      constant: jasmine.createSpy('kefir.constant').andCallFake (x) -> x
+    model.__set__ '_stream',
+      plug: jasmine.createSpy('stream.plug').andCallFake ->
 
-  it "should emit property", ->
-    key = 'string'
-    expected =
-      name: key,
-      value: data[key]
-      oldVal: undefined
+  it "should call kefir.constant", ->
+    propertyName = 'string'
+    value = {test: 'something'}
 
-    model._emitProperty _emitter,
-      type: 'add',
-      object: cloneObject model.__get__('_store')
-      name: key
+    model._emit propertyName, value
 
-    expect(_emitter.emit).toHaveBeenCalledWith(expected)
+    expect(model.__get__('_r').constant).toHaveBeenCalledWith({name: propertyName, value: value})
 
-  it "should also emit old value", ->
-    key = 'string'
-    expected =
-      name: key,
-      value: data[key]
-      oldValue: 'very old'
+  it "should call stream.plug", ->
+    propertyName = 'string'
+    value = {test: 'something'}
 
-    model._emitProperty _emitter,
-      type: 'add',
-      object: cloneObject model.__get__('_store')
-      oldValue: 'very old'
-      name: key
+    model._emit propertyName, value
 
-    expect(_emitter.emit).toHaveBeenCalledWith(expected)
-
-
-describe '_set', ->
-
-  beforeEach ->
-    setup()
-    spyOn(model, '_isUnique').andCallThrough()
-
-  it "Should set string", ->
-    val = 'new value'
-
-    model._set 'new', val
-    expect(model.__get__('_store').new).toBe(val)
-
-  it "Should set boolean", ->
-    model._set 'newFalse', false
-    model._set 'newTrue', true
-
-    expect(model.__get__('_store').newFalse).toBe(false)
-    expect(model.__get__('_store').newTrue).toBe(true)
-
-  it "Should set null", ->
-    model._set 'new', null
-
-    expect(model.__get__('_store').new).toBeNull()
-
-  it "Should set undefined", ->
-    model._set 'new'
-
-    expect(model.__get__('_store').new).toBeUndefined()
-
-  it "Should set object", ->
-    val = {"k1": "v1", "k2": "v2"}
-
-    model._set 'newObj', val
-    expect(model.__get__('_store').newObj).toEqual(val)
-
-  it "Should set array", ->
-    val = ["v1", "v2"]
-
-    model._set 'newAr', val
-    expect(model.__get__('_store').newAr).toEqual(val)
-
-  it "Should overwrite existing property", ->
-    val = 'new value'
-
-    model._set 'string', "first"
-    model._set 'string', val
-
-    expect(model.__get__('_store').string).toBe(val)
-
-  it "Should not call _isUnique", ->
-    model.uniqueness = true
-    model._set 'new', 'test', false
-
-    model.uniqueness = false
-    model._set 'new', 'test2'
-
-    expect(model._isUnique.wasCalled).toBeFalsy()
-
-  it "Should call _isUnique", ->
-    model.uniqueness = false
-    model._set 'new', 'test', true
-
-    model.uniqueness = true
-    model._set 'new', 'test2'
-
-    expect(model._isUnique.callCount).toBe(2)
+    expect(model.__get__('_stream').plug).toHaveBeenCalledWith({name: propertyName, value: value})
 
 
 describe 'get', ->
@@ -300,7 +174,10 @@ describe 'get', ->
 
 describe 'log', ->
 
-  beforeEach -> setup()
+  beforeEach ->
+    setup()
+    spyOn(model, 'set').andCallThrough()
+    spyOn(model, '_emit').andCallFake ->
 
   it "Should set log entries", ->
     logData = ['first entry', 'second entry', 'third entry']
@@ -346,53 +223,173 @@ describe 'log', ->
 
     expect(model.__get__('_store').log).toEqual(logData)
 
+  it "Should log empty line on undefined", ->
+    logData = ['first entry', undefined]
+    expected = ['first entry', null]
+
+    for line in logData
+      model.log 'log', line
+
+    expect(model.__get__('_store').log).toEqual(expected)
+
+  it "Should call emit", ->
+    model.log 'log', 'test'
+
+    expect(model._emit).toHaveBeenCalledWith('log', ['test'])
+
+  it "Should call set one time when creating new log Array", ->
+    logData = ['first entry', 'second entry', 'third entry']
+
+    for line in logData
+      model.log 'log', line
+
+    expect(model.set.callCount).toBe(1)
 
 describe 'set', ->
 
   beforeEach ->
     setup()
-    spyOn(model, '_set').andCallFake ->
+    spyOn(model, '_emit').andCallFake ->
+    spyOn(model, '_isSame').andCallThrough()
 
-  it "Should call _set", ->
-    model.set 'new', 'something'
+  it "Should set string", ->
+    val = 'new value'
 
-    expect(model._set).toHaveBeenCalledWith('new', 'something', undefined)
+    model.set 'new', val
+    expect(model.__get__('_store').new).toBe(val)
 
-  it "Should call _set with uniqueness flag", ->
-    model.set 'new', 'something', true
+  it "Should set boolean", ->
+    model.set 'newFalse', false
+    model.set 'newTrue', true
 
-    expect(model._set).toHaveBeenCalledWith('new', 'something', true)
+    expect(model.__get__('_store').newFalse).toBe(false)
+    expect(model.__get__('_store').newTrue).toBe(true)
 
-  it "Should set null when no value was given", ->
+  it "Should set null", ->
+    model.set 'new', null
+
+    expect(model.__get__('_store').new).toBeNull()
+
+  it "Should set null on undefined", ->
     model.set 'new'
 
-    expect(model._set).toHaveBeenCalledWith('new', null, undefined)
+    expect(model.__get__('_store').new).toBeNull()
+
+  it "Should set object", ->
+    val = {"k1": "v1", "k2": "v2"}
+
+    model.set 'newObj', val
+    expect(model.__get__('_store').newObj).toEqual(val)
+
+  it "Should set array", ->
+    val = ["v1", "v2"]
+
+    model.set 'newAr', val
+    expect(model.__get__('_store').newAr).toEqual(val)
+
+  it "Should overwrite existing property", ->
+    val = 'new value'
+
+    model.set 'string', "first"
+    model.set 'string', val
+
+    expect(model.__get__('_store').string).toBe(val)
+
+  it "Should call emit", ->
+    model.set 'new', 'test'
+
+    expect(model._emit).toHaveBeenCalledWith('new', 'test')
+
+  it "Should not call emit", ->
+    model.set
+
+    model._isSame.andCallFake -> true
+    model.set 'string', 'test uniqueness'
+
+    expect(model._emit.wasCalled).toBeFalsy()
+
+  it "Should not call isSame", ->
+    model.uniqueness = true
+    model.set 'new', 'test', false
+
+    model.uniqueness = false
+    model.set 'new', 'test2'
+
+    expect(model._isSame.wasCalled).toBeFalsy()
+
+  it "Should call isSame", ->
+    model.uniqueness = false
+    model.set 'new', 'test', true
+
+    model.uniqueness = true
+    model.set 'new', 'test2'
+
+    expect(model._isSame.callCount).toBe(2)
 
   it "Should fail when no property given", ->
     expect(model.set '', 'something').toBeFalsy()
     expect(model.set null, 'something').toBeFalsy()
+
+  it "Should set non referenced object", ->
+    objectData = cloneObject data.object
+
+    model.set 'obj', objectData
+    objectData.ref = 'new reference'
+
+    expect(model.__get__('_store').obj).toNotBe(objectData)
 
 
 describe 'setChildProperty', ->
 
   beforeEach ->
     setup()
-    spyOn(model, '_set').andCallFake ->
+    spyOn(model, 'set').andCallThrough()
+    spyOn(model, '_isSame').andCallThrough()
+    spyOn(model, '_emit').andCallFake ->
 
-  it "Should call _set", ->
-    model.setChildProperty 'again', 'something', 'new'
+  it "Should set string", ->
+    val = 'new value'
 
-    expect(model._set).toHaveBeenCalledWith('again', {something: 'new'}, undefined)
+    model.setChildProperty 'new', 'prop', val
 
-  it "Should call _set with uniqueness flag", ->
-    model.setChildProperty 'again', 'something', 'new', true
+    expect(model.__get__('_store').new.prop).toBe(val)
 
-    expect(model._set).toHaveBeenCalledWith('again', {something: 'new'}, true)
+  it "Should set boolean", ->
+    model.setChildProperty 'obj', 'false', false
+    model.setChildProperty 'obj', 'true', true
 
-  it "Should set null when no value was given", ->
-    model.setChildProperty 'again', 'something'
+    expect(model.__get__('_store').obj.false).toBe(false)
+    expect(model.__get__('_store').obj.true).toBe(true)
 
-    expect(model._set).toHaveBeenCalledWith('again', {something: null}, undefined)
+  it "Should set null", ->
+    model.setChildProperty 'obj', 'prop', null
+
+    expect(model.__get__('_store').obj.prop).toBeNull()
+
+  it "Should set null on undefined", ->
+    model.setChildProperty 'obj', 'prop'
+
+    expect(model.__get__('_store').obj.prop).toBeNull()
+
+  it "Should set object", ->
+    val = {"k1": "v1", "k2": "v2"}
+
+    model.setChildProperty 'obj', 'prop', val
+    expect(model.__get__('_store').obj.prop).toEqual(val)
+
+  it "Should set array", ->
+    val = ["v1", "v2"]
+
+    model.setChildProperty 'obj', 'prop', val
+    expect(model.__get__('_store').obj.prop).toEqual(val)
+
+  it "Should overwrite existing property", ->
+    val = 'new value'
+
+    model.setChildProperty 'obj', 'prop', "first"
+    model.setChildProperty 'obj', 'prop', val
+
+    expect(model.__get__('_store').obj.prop).toBe(val)
 
   it "Should fail when no property or childname given", ->
     expect(model.setChildProperty '', 'something', 'something').toBeFalsy()
@@ -405,13 +402,39 @@ describe 'setChildProperty', ->
     expect(model.setChildProperty 'string', 'something', 'something').toBeFalsy()
     expect(model.setChildProperty('array', 'new', 'something')).toBeFalsy()
 
+  it "Should not call isSame", ->
+    model.uniqueness = true
+    model.setChildProperty 'object', 'test', 'val', false
 
-describe 'stream', ->
+    model.uniqueness = false
+    model.setChildProperty 'object', 'test', 'val2', false
+
+    expect(model._isSame.wasCalled).toBeFalsy()
+
+  it "Should call isSame", ->
+    model.uniqueness = false
+    model.setChildProperty 'object', 'test', 'val', true
+
+    model.uniqueness = true
+    model.setChildProperty 'object', 'test', 'val2', true
+
+    expect(model._isSame.callCount).toBe(2)
+
+  it "Should set non referenced object", ->
+    objectData = cloneObject data.object
+
+    model.setChildProperty 'object', 'prop', objectData
+    objectData.ref = 'new reference'
+
+    expect(model.__get__('_store').object.prop).toNotBe(objectData)
+
+
+describe 'getStream', ->
 
   beforeEach -> setup()
 
   it "should return observable", ->
-    stream= model.stream()
+    stream= model.getStream()
 
     expect(stream).toEqual(jasmine.any(Object))
     expect(stream.onValue).toEqual(jasmine.any(Function))
@@ -421,7 +444,7 @@ describe 'stream', ->
   it "should trigger on value event", (done) ->
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream().onValue onV
+    model.getStream().onValue onV
 
     setTimeout ->
       expect(onV.callCount).toBe(1)
@@ -433,7 +456,7 @@ describe 'stream', ->
   it "should trigger event with setChildProperty", (done) ->
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream().onValue onV
+    model.getStream().onValue onV
 
     model.setChildProperty 'newObject', 'testOnValue', 'test'
     setTimeout ->
@@ -445,7 +468,7 @@ describe 'stream', ->
     _data = {key: 'val', key2: 'val2'}
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream()
+    model.getStream()
     .onValue onV
 
     model.set 'same', _data
@@ -460,7 +483,7 @@ describe 'stream', ->
     _data = {key: 'val', key2: 'val2'}
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream()
+    model.getStream()
     .onValue onV
 
     model.set 'notSame', _data
@@ -475,7 +498,7 @@ describe 'stream', ->
   it "should not trigger event when setting undefined on non existing property", (done) ->
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream()
+    model.getStream()
     .onValue onV
 
     model.set 'same'
@@ -487,7 +510,7 @@ describe 'stream', ->
   it "should trigger event after setting undefined on existing property", (done) ->
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream()
+    model.getStream()
     .onValue onV
 
     model.set 'same'
@@ -496,11 +519,10 @@ describe 'stream', ->
       done()
     , 0
 
-  it "event value should contain property name, oldValue, value", (done) ->
-    model.stream()
+  it "event value should contain property name, value", (done) ->
+    model.getStream()
     .onValue (val) ->
       expect(val.hasOwnProperty("name")).toBeTruthy()
-      expect(val.hasOwnProperty("oldValue")).toBeTruthy()
       expect(val.hasOwnProperty("value")).toBeTruthy()
       done()
 
@@ -510,35 +532,18 @@ describe 'stream', ->
     name = 'testOnValue'
     value = 'testing'
 
-    model.stream()
+    model.getStream()
     .onValue (val) ->
       expect(val.name).toEqual(name)
       expect(val.value).toEqual(value)
-      expect(val.oldValue).toBeUndefined()
       done()
 
     model.set name, value
 
-  it "should return correct defined old value", (done) ->
-    val1 = 'testing'
-    val2 = 'more testing'
-
-    model.stream()
-    .onValue (val) ->
-      return false if val.value != val2
-      expect(val.oldValue).toEqual(val1)
-      done()
-    .onValue (val) ->
-      setTimeout ->
-        model.set 'testOnValue', val2 if val.value == val1
-      , 1
-
-    model.set 'testOnValue', val1
-
   it "should listen on all properties", (done) ->
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream().onValue onV
+    model.getStream().onValue onV
 
     model.set 'testOnValue', 'testing'
     model.set 'totallyDifferentProperty', 'more testing'
@@ -551,7 +556,7 @@ describe 'stream', ->
   it "should trigger event from log", (done) ->
     onV = jasmine.createSpy('onValue').andCallFake ->
 
-    model.stream()
+    model.getStream()
     .onValue onV
 
     model.log 'newLog', 'first line'
