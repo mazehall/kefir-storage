@@ -6,12 +6,9 @@
   "scripts": {
     "test": "node_modules/.bin/jasmine-node --coffee tests"
   },
-  "engines" : {
-    "node" : ">=0.12"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mazelab/kefir-storage"
+    "url": "https://github.com/mazehall/kefir-storage"
   },
   "keywords": [
     "kefir",
