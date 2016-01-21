@@ -79,4 +79,5 @@ node_modules
 src
 tests
 .gitignore
+.travis.yml
 gulpfile.js

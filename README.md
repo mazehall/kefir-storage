@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/mazehall/kefir-storage.svg?branch=master)](https://travis-ci.org/mazehall/kefir-storage)
+
 # Kefir-storage
 
 Observe storage changes through kefir.
