@@ -36,6 +36,12 @@ model.get = (propertyName) ->
 
   model._cloneObject _store[propertyName]
 
+model.getChildProperty = (propertyName, childName) ->
+  return null if !(!!propertyName) || !(!!childName)
+  return undefined if typeof _store[propertyName] != "object" || typeof _store[propertyName][childName] == "undefined"
+
+  model._cloneObject _store[propertyName][childName]
+
 model.getStream = ->
   _stream
 

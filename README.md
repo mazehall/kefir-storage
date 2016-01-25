@@ -83,6 +83,10 @@ Returns kefir stream which emits only properties that match the regular expressi
 
 Returns current property state.
 
+### getChildProperty(propertyName, childName)
+
+Returns value of the child of the property. 
+
 ### getStream()
 
 Returns kefir stream which emits every change

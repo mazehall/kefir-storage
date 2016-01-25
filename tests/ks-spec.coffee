@@ -171,6 +171,49 @@ describe 'get', ->
   it "Should return undefined if property does not exist", ->
     expect(model.get 'entropy').toBeUndefined()
 
+describe 'getChildProperty', ->
+
+  beforeEach -> setup()
+
+  it "Should return null", ->
+    expect(model.getChildProperty 'object', 'null').toBeNull()
+
+  it "Should return boolean true", ->
+    expect(model.getChildProperty 'object', 'bTrue').toBe(true)
+
+  it "Should return boolean false", ->
+    expect(model.getChildProperty 'object', 'bFalse').toBe(false)
+
+  it "Should return correct string", ->
+    expect(model.getChildProperty 'object', 'string').toBe(data.object.string)
+
+  it "Should return complete object", ->
+    expect(model.getChildProperty 'object', 'object').toEqual(data.object.object)
+
+  it "Should return complete array", ->
+    expect(model.getChildProperty 'object', 'array').toEqual(data.object.array)
+
+  it "object changes should not change the storage data through object reference", ->
+    objectData = model.getChildProperty 'object', 'object'
+    objectData.string = "Changed string"
+    objectData.something = "new property"
+
+    expect(model.__get__ '_store').toEqual(data)
+
+  it "Should fail when no property given", ->
+    expect(model.getChildProperty '', 'something').toBeFalsy()
+    expect(model.getChildProperty null, 'somehting').toBeFalsy()
+
+    expect(model.getChildProperty 'object', '').toBeFalsy()
+    expect(model.getChildProperty 'object', null).toBeFalsy()
+
+  it "Should return undefined if property does not exist", ->
+    expect(model.getChildProperty 'object', 'entropy').toBeUndefined()
+
+  it "Should work with arrays", ->
+    expect(model.getChildProperty 'array', 3).toBe('I am string too')
+    expect(model.getChildProperty 'array', 'noNumericKey').toBe(undefined)
+
 
 describe 'log', ->
 
