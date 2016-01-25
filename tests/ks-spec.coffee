@@ -245,6 +245,14 @@ describe 'log', ->
 
     expect(model.set.callCount).toBe(1)
 
+  it "Should call emit without referenced log entries", ->
+    model.__set__ '_store',
+      log: [{"text": 'some content'}]
+
+    model.log 'log', {"text": 'more content'}
+
+    expect(model._emit.argsForCall[0][1]).toNotBe(model.__get__('_store').log)
+
 describe 'set', ->
 
   beforeEach ->

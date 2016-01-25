@@ -48,7 +48,7 @@ model.log = (propertyName, value) ->
   _store[propertyName].push value
   _store[propertyName].shift() if model.linesMax? && _store[propertyName].length > model.linesMax
 
-  model._emit propertyName, _store[propertyName]
+  model._emit propertyName, model._cloneObject _store[propertyName]
 
 model.set = (propertyName, value, unique) ->
   return null if !(!!propertyName)
