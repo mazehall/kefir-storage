@@ -1,6 +1,6 @@
 {
   "name": "kefir-storage",
-  "version": "1.1.1",
+  "version": "1.1.0",
   "description": "Observe object storage changes through kefir",
   "main": "index.js",
   "scripts": {
